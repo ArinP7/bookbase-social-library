@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - BookBase</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Work+Sans:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        .settings-section {
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .settings-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary-dark);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-info h3 {
+            font-size: 1.0625rem;
+            margin-bottom: 0.25rem;
+            color: var(--text-primary);
+        }
+
+        .setting-info p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 32px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 32px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--primary);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(28px);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" style="max-width: 800px; margin: 4rem auto; padding: 2rem;">
+        <a href="dashboard.html"
+            style="display: inline-flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); margin-bottom: 2rem; text-decoration: none;">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M12 16L6 10L12 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+            </svg>
+            Back to Dashboard
+        </a>
+
+        <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem; color: var(--primary-dark);">Settings</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">Manage your account and preferences</p>
+
+        <!-- Appearance -->
+        <div class="settings-section">
+            <h2>Appearance</h2>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h3>Dark Mode</h3>
+                    <p>Switch between light and dark themes</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="darkModeToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Privacy -->
+        <div class="settings-section">
+            <h2>Privacy</h2>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h3>Public Library</h3>
+                    <p>Allow others to see your book collection</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="publicLibraryToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h3>Show Statistics</h3>
+                    <p>Display reading stats on your profile</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="showStatsToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="settings-section">
+            <h2>Notifications</h2>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h3>Email Notifications</h3>
+                    <p>Receive notifications via email</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="emailNotifToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h3>Rental Reminders</h3>
+                    <p>Get reminded when books are due</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="rentalRemindersToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h3>Social Updates</h3>
+                    <p>Notifications for likes, comments, and follows</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="socialNotifToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Account -->
+        <div class="settings-section">
+            <h2>Account</h2>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h3>Email</h3>
+                    <p id="userEmail">john.doe@example.com</p>
+                </div>
+                <button class="btn-secondary">Change</button>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h3>Password</h3>
+                    <p>Last changed 30 days ago</p>
+                </div>
+                <button class="btn-secondary">Change</button>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="settings-section" style="border: 2px solid #ff6b6b;">
+            <h2 style="color: #ff6b6b;">Danger Zone</h2>
+
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h3>Delete Account</h3>
+                    <p>Permanently delete your account and all data</p>
+                </div>
+                <button class="btn-secondary" style="border-color: #ff6b6b; color: #ff6b6b;"
+                    onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (Compat version) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script>
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.body.setAttribute('data-theme', savedTheme);
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        if (darkModeToggle) darkModeToggle.checked = savedTheme === 'dark';
+
+        // Dark mode toggle
+        if (darkModeToggle) {
+            darkModeToggle.addEventListener('change', function () {
+                const newTheme = this.checked ? 'dark' : 'light';
+                document.body.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+            });
+        }
+
+        // Initialize with BookApp
+        document.addEventListener('DOMContentLoaded', () => {
+            if (BookApp && BookApp.auth) {
+                BookApp.auth.onAuthStateChanged(user => {
+                    if (user) {
+                        const emailElement = document.getElementById('userEmail');
+                        if (emailElement) emailElement.textContent = user.email;
+
+                        // Also sync theme if needed
+                    } else {
+                        // Redirect to login if not logged in? Or just show default
+                        console.log("User not logged in");
+                        // window.location.href = 'login.html'; 
+                    }
+                });
+            }
+        });
+
+        // Save other settings
+        ['publicLibraryToggle', 'showStatsToggle', 'emailNotifToggle', 'rentalRemindersToggle', 'socialNotifToggle'].forEach(id => {
+            const toggle = document.getElementById(id);
+            if (!toggle) return;
+
+            const savedValue = localStorage.getItem(id);
+            if (savedValue !== null) {
+                toggle.checked = savedValue === 'true';
+            }
+            toggle.addEventListener('change', function () {
+                localStorage.setItem(id, this.checked);
+            });
+        });
+
+        function confirmDelete() {
+            if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                if (confirm('This will permanently delete all your books, rentals, and social connections. Continue?')) {
+                    if (BookApp) {
+                        BookApp.auth.currentUser.delete().then(() => {
+                            alert('Account deleted successfully.');
+                            BookApp.logout();
+                        }).catch(err => {
+                            alert('Error deleting account: ' + err.message);
+                        });
+                    } else {
+                        localStorage.clear();
+                        window.location.href = 'index.html';
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

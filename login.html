@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - BookBase</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="auth.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Work+Sans:wght@300;400;500;600&display=swap">
+</head>
+
+<body>
+    <div class="auth-container">
+        <div class="auth-visual">
+            <div class="auth-overlay">
+                <h2>Welcome Back!</h2>
+                <p>Continue building your digital library</p>
+            </div>
+        </div>
+
+        <div class="auth-form-container">
+            <div class="auth-header">
+                <a href="index.html" class="back-link">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M12 16L6 10L12 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    Back to Home
+                </a>
+
+                <div class="logo">
+                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                        <path d="M8 32V8L20 12L32 8V32L20 28L8 32Z" fill="currentColor" />
+                        <path d="M20 12V28" stroke="var(--bg-primary)" stroke-width="2" />
+                    </svg>
+                    <span>BookBase</span>
+                </div>
+            </div>
+
+            <div class="auth-form">
+                <h1>Log In</h1>
+                <p class="auth-subtitle">Enter your credentials to access your library</p>
+
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" placeholder="your@email.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" placeholder="Enter your password" required>
+                    </div>
+
+                    <div class="form-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox">
+                            <span>Remember me</span>
+                        </label>
+                        <a href="#" class="forgot-link" onclick="alert('Password reset feature coming soon!')">Forgot password?</a>
+                    </div>
+
+                    <button type="submit" class="btn-submit">Log In</button>
+                </form>
+
+                <div class="auth-divider">
+                    <span>or continue with</span>
+                </div>
+
+                <div class="social-auth">
+                    <button type="button" class="social-btn google" onclick="signInWithGoogle()">
+                        <svg width="20" height="20" viewBox="0 0 20 20">
+                            <path fill="#4285F4"
+                                d="M19.6 10.23c0-.82-.07-1.42-.22-2.05H10v3.72h5.51c-.11.94-.72 2.36-2.07 3.31l-.02.1 3 2.33.21.02c1.92-1.77 3.02-4.38 3.02-7.43z" />
+                            <path fill="#34A853"
+                                d="M10 20c2.7 0 4.96-.89 6.62-2.42l-3.19-2.45c-.85.58-1.97.98-3.43.98-2.62 0-4.84-1.77-5.63-4.19l-.1.01-3.12 2.42-.04.1C2.48 17.69 5.98 20 10 20z" />
+                            <path fill="#FBBC05"
+                                d="M4.37 11.92c-.21-.62-.33-1.29-.33-1.98s.12-1.36.32-1.98l-.01-.11-3.16-2.46-.1.04C.41 6.73 0 8.31 0 10s.41 3.27 1.14 4.57l3.23-2.65z" />
+                            <path fill="#EB4335"
+                                d="M10 3.88c1.88 0 3.13.81 3.85 1.48l2.84-2.76C14.96.99 12.7 0 10 0 5.98 0 2.48 2.31.86 5.57l3.22 2.65c.79-2.42 3.01-4.19 5.63-4.19z" />
+                        </svg>
+                        Google
+                    </button>
+                    <button type="button" class="social-btn" onclick="window.location.href='phone-auth.html'"
+                        style="background: #25D366; color: white; margin-top: 10px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                            </path>
+                        </svg>
+                        Phone Number
+                    </button>
+                </div>
+
+                <p class="auth-switch">
+                    Don't have an account? <a href="signup.html">Sign up</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (Compat version) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script src="firebase-config.js"></script>
+
+    <script>
+        // Handle login form
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const user = await BookApp.login(email, password);
+
+                console.log('Login successful:', user.email);
+                alert('Login successful! Welcome back!');
+                window.location.href = 'dashboard.html';
+            } catch (error) {
+                console.error('Login error:', error);
+                if (error.code === 'auth/user-not-found') {
+                    alert('No account found with this email. Please sign up first.');
+                } else if (error.code === 'auth/wrong-password') {
+                    alert('Incorrect password. Please try again.');
+                } else if (error.code === 'auth/invalid-email') {
+                    alert('Invalid email address.');
+                } else {
+                    alert('Error: ' + error.message);
+                }
+            }
+        });
+
+        // Google Sign-In function
+        window.signInWithGoogle = async () => {
+            try {
+                const user = await BookApp.signInWithGoogle();
+                alert('Signed in with Google successfully!');
+                window.location.href = 'dashboard.html';
+            } catch (error) {
+                console.error('Google sign-in error:', error);
+                if (error.code === 'auth/popup-closed-by-user') {
+                    alert('Sign-in cancelled.');
+                } else {
+                    alert('Error: ' + error.message);
+                }
+            }
+        };
+    </script>
+</body>
+
+</html>

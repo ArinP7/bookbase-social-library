@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Sign In - BookBase</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="auth.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Work+Sans:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="auth-container">
+        <div class="auth-visual">
+            <div class="auth-overlay">
+                <h2>Sign In with Phone</h2>
+                <p>Quick and secure authentication</p>
+            </div>
+        </div>
+
+        <div class="auth-form-container">
+            <div class="auth-header">
+                <a href="signup.html" class="back-link">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M12 16L6 10L12 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    Back to Sign Up
+                </a>
+
+                <div class="logo">
+                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                        <path d="M8 32V8L20 12L32 8V32L20 28L8 32Z" fill="currentColor" />
+                        <path d="M20 12V28" stroke="var(--bg-primary)" stroke-width="2" />
+                    </svg>
+                    <span>BookBase</span>
+                </div>
+            </div>
+
+            <div class="auth-form">
+                <h1>Phone Authentication</h1>
+                <p class="auth-subtitle">Enter your phone number to receive a verification code</p>
+
+                <!-- Phone Number Input -->
+                <div id="phoneNumberSection">
+                    <div class="form-group">
+                        <label for="phoneNumber">Phone Number</label>
+                        <input type="tel" id="phoneNumber" placeholder="+91 98765 43210" required>
+                        <small>Include country code (e.g., +91 for India)</small>
+                    </div>
+
+                    <div id="recaptcha-container"></div>
+
+                    <button type="button" class="btn-submit" onclick="sendOTP()">Send OTP</button>
+                </div>
+
+                <!-- OTP Verification -->
+                <div id="otpSection" style="display: none;">
+                    <div class="form-group">
+                        <label for="otpCode">Verification Code</label>
+                        <input type="text" id="otpCode" placeholder="Enter 6-digit code" maxlength="6" required>
+                    </div>
+
+                    <button type="button" class="btn-submit" onclick="verifyOTP()">Verify & Sign In</button>
+                    <button type="button" class="btn-secondary" onclick="resetForm()">Change Number</button>
+                </div>
+
+                <p class="auth-switch">
+                    Prefer email? <a href="signup.html">Sign up with email</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (Compat version) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script src="firebase-config.js"></script>
+
+    <script>
+        // Initialize Firebase variables from global helper
+        const auth = BookApp.auth;
+        const db = BookApp.db;
+
+        // Set up reCAPTCHA
+        try {
+            window.recaptchaVerifier = new BookApp.firebase.auth.RecaptchaVerifier('recaptcha-container', {
+                'size': 'normal',
+                'callback': (response) => {
+                    console.log('reCAPTCHA solved:', response);
+                },
+                'expired-callback': () => {
+                    console.warn('reCAPTCHA expired');
+                    alert('reCAPTCHA expired. Please try again.');
+                }
+            });
+
+            console.log('RecaptchaVerifier initialized');
+            recaptchaVerifier.render().then(function (widgetId) {
+                console.log('Recaptcha rendered, widgetId:', widgetId);
+            });
+        } catch (error) {
+            console.error('Error initializing RecaptchaVerifier:', error);
+            alert('Error initializing authentication system: ' + error.message);
+        }
+
+        let confirmationResult;
+
+        // Send OTP
+        window.sendOTP = async () => {
+            const phoneNumber = document.getElementById('phoneNumber').value.trim();
+
+            if (!phoneNumber) {
+                alert('Please enter your phone number');
+                return;
+            }
+
+            // Validate phone number format
+            if (!phoneNumber.startsWith('+')) {
+                alert('Please include country code (e.g., +91 for India)');
+                return;
+            }
+
+            try {
+                // Use the centralized helper
+                confirmationResult = await BookApp.signInWithPhoneNumber(phoneNumber, recaptchaVerifier);
+
+                // Show OTP section
+                document.getElementById('phoneNumberSection').style.display = 'none';
+                document.getElementById('otpSection').style.display = 'block';
+
+                alert('OTP sent to ' + phoneNumber);
+            } catch (error) {
+                console.error('Error sending OTP:', error);
+                if (error.code === 'auth/invalid-phone-number') {
+                    alert('Invalid phone number format. Please check and try again.');
+                } else if (error.code === 'auth/too-many-requests') {
+                    alert('Too many requests. Please try again later.');
+                } else {
+                    alert('Error: ' + error.message);
+                }
+                // Reset reCAPTCHA (if available/exposed)
+            }
+        };
+
+        // Verify OTP
+        window.verifyOTP = async () => {
+            const otpCode = document.getElementById('otpCode').value.trim();
+
+            if (!otpCode || otpCode.length !== 6) {
+                alert('Please enter the 6-digit verification code');
+                return;
+            }
+
+            try {
+                const result = await confirmationResult.confirm(otpCode);
+                const user = result.user;
+
+                // Create or update user document in Firestore
+                const phoneNumber = user.phoneNumber;
+                const userName = phoneNumber.substring(phoneNumber.length - 10); // Last 10 digits as name
+
+                await db.collection('users').doc(user.uid).set({
+                    name: 'User ' + userName,
+                    phoneNumber: phoneNumber,
+                    createdAt: new Date().toISOString(),
+                    profilePhoto: `https://ui-avatars.com/api/?name=User+${userName}&background=2B4C7E&color=fff`,
+                    bio: '',
+                    readingGoal: 50
+                }, { merge: true });
+
+                alert('Phone verification successful!');
+                window.location.href = 'dashboard.html';
+            } catch (error) {
+                console.error('Error verifying OTP:', error);
+                if (error.code === 'auth/invalid-verification-code') {
+                    alert('Invalid verification code. Please try again.');
+                } else if (error.code === 'auth/code-expired') {
+                    alert('Verification code expired. Please request a new one.');
+                } else {
+                    alert('Error: ' + error.message);
+                }
+            }
+        };
+
+        // Reset form
+        window.resetForm = () => {
+            document.getElementById('phoneNumberSection').style.display = 'block';
+            document.getElementById('otpSection').style.display = 'none';
+            document.getElementById('phoneNumber').value = '';
+            document.getElementById('otpCode').value = '';
+            recaptchaVerifier.render();
+        };
+    </script>
+
+    <style>
+        .btn-secondary {
+            width: 100%;
+            padding: 14px;
+            margin-top: 10px;
+            background: transparent;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        small {
+            display: block;
+            margin-top: 5px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        #recaptcha-container {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</body>
+
+</html>

@@ -2,6 +2,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     renderPage('discover');
 
+    // Navigation Listener
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', (e) => {
             const pageId = item.getAttribute('data-page');
@@ -13,19 +14,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Share Button
     const shareBtn = document.getElementById('shareProfileBtn');
     if (shareBtn) {
-        shareBtn.addEventListener('click', () => alert('Profile Link Copied to Clipboard!'));
+        shareBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(window.location.href);
+            alert('Profile link copied to clipboard!');
+        });
     }
 
+    // Logout Button
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (confirm('Logout?')) BookApp.logout();
+            if (confirm('Are you sure you want to logout?')) {
+                BookApp.logout();
+            }
         });
     }
 
+    // Profile Section Click
     const profileSection = document.querySelector('.user-profile-mini');
     if (profileSection) {
         profileSection.style.cursor = 'pointer';
@@ -35,12 +44,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Mobile Menu Toggle
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.querySelector('.sidebar');
-    if (menuToggle) {
+    if (menuToggle && sidebar) {
         menuToggle.addEventListener('click', () => sidebar.classList.toggle('active'));
     }
 
+    // Close sidebar on mobile when clicking nav items
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth <= 768 && sidebar) {
+                sidebar.classList.remove('active');
+            }
+        });
+    });
+
+    // Follow Button Handler
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('btn-follow')) {
             const btn = e.target;
@@ -53,11 +73,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initTheme();
     initNotifications();
+    loadUserProfile();
 });
 
+// Load User Profile from Firebase
+async function loadUserProfile() {
+    try {
+        const user = BookApp.auth.currentUser;
+        if (user) {
+            console.log("Loading profile for:", user.email);
+            
+            // Update sidebar profile
+            const nameEl = document.querySelector('.user-info .name');
+            const statusEl = document.querySelector('.user-info .status');
+            const avatarImg = document.querySelector('.user-profile-mini img');
+            
+            if (nameEl) nameEl.textContent = user.displayName || user.email.split('@')[0];
+            if (statusEl) statusEl.textContent = 'Online';
+            if (avatarImg) {
+                avatarImg.src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=2B4C7E&color=fff`;
+            }
+
+            // Try to fetch from Firestore
+            try {
+                const doc = await BookApp.db.collection('users').doc(user.uid).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    console.log("User data:", data);
+                    
+                    // Update profile in localStorage for offline access
+                    localStorage.setItem('userProfile', JSON.stringify({
+                        name: data.name || user.displayName || user.email.split('@')[0],
+                        email: data.email || user.email,
+                        avatar: data.avatar || user.photoURL,
+                        bio: data.bio || '',
+                        readingGoal: data.readingGoal || 50
+                    }));
+                }
+            } catch (e) {
+                console.log("Using local profile data");
+            }
+        }
+    } catch (error) {
+        console.error("Error loading profile:", error);
+    }
+}
+
+// Theme Initialization
 function initTheme() {
     const themeToggle = document.getElementById('themeToggle');
     if (!themeToggle) return;
+    
     const sunIcon = themeToggle.querySelector('.sun-icon');
     const moonIcon = themeToggle.querySelector('.moon-icon');
     const themeText = themeToggle.querySelector('.theme-text');
@@ -79,14 +145,14 @@ function initTheme() {
     });
 }
 
+// Notifications
 function initNotifications() {
     const bell = document.getElementById('notificationBtn');
     const badge = document.getElementById('notificationBadge');
     if (bell && badge) {
         bell.addEventListener('click', () => {
             badge.classList.toggle('active');
-            if (badge.classList.contains('active')) alert('All notifications cleared!');
-            else alert('No new notifications.');
+            alert(badge.classList.contains('active') ? 'Notifications cleared!' : 'No new notifications');
         });
     }
 }
@@ -96,8 +162,11 @@ function showNotification() {
     if (badge) badge.classList.add('active');
 }
 
+// State Management
 let userStats = { readingGoal: 30, booksRead: 12 };
+let currentUser = null;
 
+// Mock Library Data
 let myLibrary = [
     { title: "Project Hail Mary", author: "Andy Weir", cover: "pic/burning-ground.jpg", genre: "Sci-Fi", price: "$14.99" },
     { title: "Dune", author: "Frank Herbert", cover: "pic/fourth-girl.jpg", genre: "Sci-Fi", price: "$12.50" },
@@ -106,6 +175,42 @@ let myLibrary = [
     { title: "The Bees", author: "Laline Paull", cover: "pic/the-bees.jpg", genre: "Thriller", price: "$14.00" },
     { title: "Sorrow and Bliss", author: "Meg Mason", cover: "pic/sorrow-and-bliss.jpg", genre: "Romance", price: "$12.00" }
 ];
+
+// Get user from Firebase and update profile
+BookApp.auth.onAuthStateChanged(async (user) => {
+    if (user) {
+        currentUser = user;
+        console.log("User logged in:", user.email);
+        
+        // Update UI with user data
+        const nameEl = document.querySelector('.user-info .name');
+        if (nameEl) {
+            nameEl.textContent = user.displayName || user.email.split('@')[0];
+        }
+        
+        const avatarImg = document.querySelector('.user-profile-mini img');
+        if (avatarImg) {
+            avatarImg.src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=2B4C7E&color=fff`;
+        }
+        
+        // Store user info
+        localStorage.setItem('currentUser', JSON.stringify({
+            uid: user.uid,
+            email: user.email,
+            name: user.displayName || user.email.split('@')[0],
+            photoURL: user.photoURL
+        }));
+        
+        // Reload profile page to show user data
+        const activeNav = document.querySelector('.nav-item.active');
+        if (activeNav && activeNav.getAttribute('data-page') === 'profile') {
+            renderPage('profile');
+        }
+    } else {
+        currentUser = null;
+        console.log("User logged out");
+    }
+});
 
 function getGenreStats() {
     const total = myLibrary.length;
@@ -135,6 +240,7 @@ function renderPage(pageKey) {
     }
 }
 
+// Discover Page
 function renderDiscover(container) {
     const stats = getGenreStats();
     const recs = [
@@ -144,19 +250,34 @@ function renderDiscover(container) {
     ];
     
     container.innerHTML = `
-        <div class="ai-analyst-card">
-            <h3>AI Collection Analyst</h3>
+        <div class="ai-analyst-card" style="background: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3 style="color: var(--primary); margin-bottom: 10px;">AI Collection Analyst</h3>
             <p>Your library is <strong>${stats.dominantPercent}% ${stats.dominantGenre}</strong></p>
             <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px;">
-                ${recs.map(b => `<div style="min-width: 150px;"><img src="${b.cover}" style="width:100px;"><h4>${b.title}</h4><p>${b.author}</p><button class="btn-buy" onclick="alert('Added!')">${b.price}</button></div>`).join('')}
+                ${recs.map(b => `
+                    <div style="min-width: 150px; text-align: center;">
+                        <img src="${b.cover}" style="width: 100px; height: 150px; object-fit: cover; border-radius: 8px;">
+                        <h4 style="font-size: 14px; margin: 10px 0 5px;">${b.title}</h4>
+                        <p style="font-size: 12px; color: #666;">${b.author}</p>
+                        <button onclick="alert('Added to cart: ${b.price}')" style="background: var(--primary); color: white; border: none; padding: 5px 15px; border-radius: 20px; cursor: pointer; margin-top: 5px;">${b.price}</button>
+                    </div>
+                `).join('')}
             </div>
-        <h2 class="section-title">Your Books</h2>
-        <div class="books-grid">
-            ${myLibrary.map(b => `<div class="book-card"><img src="${b.cover}" style="width:100px;"><h4>${b.title}</h4><p>${b.author}</p></div>`).join('')}
+        
+        <h2 class="section-title" style="margin-bottom: 20px;">Your Library Books</h2>
+        <div class="books-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px;">
+            ${myLibrary.map(b => `
+                <div class="book-card" style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <img src="${b.cover}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;">
+                    <h4 style="font-size: 14px; margin: 10px 0 5px;">${b.title}</h4>
+                    <p style="font-size: 12px; color: #666;">${b.author}</p>
+                </div>
+            `).join('')}
         </div>
     `;
 }
 
+// Library Page
 function renderLibrary(container, genre = 'All') {
     const genres = ['All', 'Romance', 'Horror', 'Thriller', 'Sci-Fi'];
     const stats = getGenreStats();
@@ -164,33 +285,52 @@ function renderLibrary(container, genre = 'All') {
     
     container.innerHTML = `
         <h2 class="section-title">Collection Insights</h2>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
-            <div class="insight-card">
-                <h3>Library Breakdown</h3>
-                ${Object.entries(stats.counts).map(([g, c]) => `<div style="margin: 10px 0;"><div style="display:flex;justify-content:space-between;"><span>${g}</span><span>${((c/stats.total)*100).toFixed(0)}%</span></div><div style="height:6px;background:#eee;border-radius:3px;"><div style="width:${((c/stats.total)*100)}%;height:100%;background:var(--primary);border-radius:3px;"></div>`).join('')}
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px;">
+            <div class="insight-card" style="background: white; padding: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h3 style="margin-bottom: 15px;">Library Breakdown</h3>
+                ${Object.entries(stats.counts).map(([g, c]) => `
+                    <div style="margin: 10px 0;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px;"><span>${g}</span><span>${((c/stats.total)*100).toFixed(0)}%</span></div>
+                        <div style="height: 8px; background: #eee; border-radius: 4px;">
+                            <div style="width: ${((c/stats.total)*100)}%; height: 100%; background: var(--primary); border-radius: 4px;"></div>
+                    </div>
+                `).join('')}
             </div>
-            <div class="insight-card">
-                <h3>2026 Reading Goal</h3>
-                <div style="height:10px;background:#eee;border-radius:5px;margin:15px 0;"><div style="width:${(userStats.booksRead/userStats.readingGoal*100)}%;height:100%;background:var(--accent);border-radius:5px;"></div>
+            <div class="insight-card" style="background: white; padding: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h3 style="margin-bottom: 15px;">2026 Reading Goal</h3>
+                <div style="height: 12px; background: #eee; border-radius: 6px; margin: 15px 0;">
+                    <div style="width: ${(userStats.booksRead/userStats.readingGoal*100)}%; height: 100%; background: var(--accent); border-radius: 6px;"></div>
                 <p>${userStats.booksRead} / ${userStats.readingGoal} Books</p>
-                <button onclick="setGoal()" style="cursor:pointer;">Set Goal</button>
+                <button onclick="setReadingGoal()" style="background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; margin-top: 10px;">Set Goal</button>
             </div>
-        <h2 class="section-title">My Library</h2>
-        <div style="display:flex;gap:10px;margin-bottom:20px;">
-            ${genres.map(g => `<button class="category-tab ${genre===g?'active':''}" onclick="renderLib('${g}')">${g}</button>`).join('')}
+        
+        <h2 class="section-title" style="margin-bottom: 15px;">My Library</h2>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            ${genres.map(g => `
+                <button onclick="filterLibrary('${g}')" style="padding: 8px 16px; border: 1px solid var(--primary); background: ${genre===g?'var(--primary)':'transparent'}; color: ${genre===g?'white':'var(--primary)'}; border-radius: 20px; cursor: pointer;">${g}</button>
+            `).join('')}
         </div>
-        <div class="books-grid">
-            ${filtered.length ? filtered.map(b => `<div class="book-card"><img src="${b.cover}" style="width:100px;"><h4>${b.title}</h4><span style="font-size:12px;background:rgba(0,105,92,0.1);color:#00695c;padding:2px 6px;border-radius:4px;">Owned</span></div>`).join('') : '<p>No books</p>'}
+        
+        <div class="books-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px;">
+            ${filtered.length ? filtered.map(b => `
+                <div class="book-card" style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <img src="${b.cover}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;">
+                    <h4 style="font-size: 14px; margin: 10px 0 5px;">${b.title}</h4>
+                    <span style="font-size: 11px; background: rgba(0,105,92,0.1); color: #00695c; padding: 2px 8px; border-radius: 10px;">Owned</span>
+                </div>
+            `).join('') : '<p style="grid-column: 1/-1; text-align: center; padding: 40px;">No books found</p>'}
         </div>
     `;
 }
 
-window.setGoal = () => {
-    const g = prompt('Set goal:', userStats.readingGoal);
+window.setReadingGoal = () => {
+    const g = prompt('Set your 2026 reading goal:', userStats.readingGoal);
     if (g && !isNaN(g)) { userStats.readingGoal = parseInt(g); renderPage('library'); }
 };
-window.renderLib = (g) => renderLibrary(document.getElementById('page-content'), g);
 
+window.filterLibrary = (genre) => renderLibrary(document.getElementById('page-content'), genre);
+
+// Favorites Page
 function renderFavorites(container, view = 'collection') {
     const favs = [
         { title: "Sorrow and Bliss", author: "Meg Mason", cover: "pic/sorrow-and-bliss.jpg" },
@@ -204,36 +344,72 @@ function renderFavorites(container, view = 'collection') {
     
     container.innerHTML = `
         <h2 class="section-title">Hearted Collection</h2>
-        <div style="display:flex;gap:10px;margin-bottom:20px;">
-            <button class="fav-toggle-btn ${view==='collection'?'active':''}" onclick="renderFav('collection')">My Collection</button>
-            <button class="fav-toggle-btn ${view==='wishlist'?'active':''}" onclick="renderFav('wishlist')">Community Wishlist</button>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button onclick="renderFavPage('collection')" style="padding: 10px 20px; background: ${view==='collection'?'var(--primary)':'transparent'}; color: ${view==='collection'?'white':'var(--primary)'}; border: 1px solid var(--primary); border-radius: 20px; cursor: pointer;">My Collection</button>
+            <button onclick="renderFavPage('wishlist')" style="padding: 10px 20px; background: ${view==='wishlist'?'var(--primary)':'transparent'}; color: ${view==='wishlist'?'white':'var(--primary)'}; border: 1px solid var(--primary); border-radius: 20px; cursor: pointer;">Community Wishlist</button>
         </div>
-        <div class="books-grid">
-            ${(view==='collection'?favs:wish).map(b => `<div class="book-card"><img src="${b.cover}" style="width:100px;"><h4>${b.title}</h4><p>${b.author}</p>${view==='wishlist'?`<button onclick="alert('Request sent!')">Ask to Borrow</button>`:`<button onclick="alert('Removed!')">❤️</button>`}</div>`).join('')}
+        <div class="books-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px;">
+            ${(view==='collection'?favs:wish).map(b => `
+                <div class="book-card" style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <img src="${b.cover}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;">
+                    <h4 style="font-size: 14px; margin: 10px 0 5px;">${b.title}</h4>
+                    <p style="font-size: 12px; color: #666;">${b.author}</p>
+                    ${view==='wishlist' ? `<button onclick="alert('Request sent to ${b.source}!')" style="background: var(--primary); color: white; border: none; padding: 5px 15px; border-radius: 15px; cursor: pointer; margin-top: 10px;">Ask to Borrow</button>` : `<button onclick="alert('Removed from favorites!')" style="background: #ff4757; color: white; border: none; padding: 5px 15px; border-radius: 15px; cursor: pointer; margin-top: 10px;">❤️</button>`}
+                </div>
+            `).join('')}
         </div>
     `;
 }
-window.renderFav = (v) => renderFavorites(document.getElementById('page-content'), v);
+window.renderFavPage = (v) => renderFavorites(document.getElementById('page-content'), v);
 
+// Add Book Form
 function renderAddBookForm(container) {
     container.innerHTML = `
         <h2 class="section-title">Add to Collection</h2>
-        <form onsubmit="addBook(event)" style="max-width:500px;">
-            <div class="form-group"><label>Title</label><input type="text" id="bt" required></div>
-            <div class="form-group"><label>Author</label><input type="text" id="ba" required></div>
-            <div class="form-group"><label>Genre</label><select id="bg"><option>Romance</option><option>Horror</option><option>Thriller</option><option>Sci-Fi</option></select></div>
-            <div class="form-group"><label>Year</label><input type="number" id="by" required></div>
-            <button type="submit" class="pro-btn">Add Book</button>
+        <form onsubmit="addNewBook(event)" style="max-width: 500px; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Book Title</label>
+                <input type="text" id="bookTitle" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Author</label>
+                <input type="text" id="bookAuthor" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Genre</label>
+                <select id="bookGenre" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                    <option value="">Select Genre</option>
+                    <option>Romance</option>
+                    <option>Horror</option>
+                    <option>Thriller</option>
+                    <option>Sci-Fi</option>
+                    <option>Other</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 500;">Published Year</label>
+                <input type="number" id="bookYear" required style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+            </div>
+            <button type="submit" style="width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer;">Add to Library</button>
         </form>
     `;
 }
-window.addBook = (e) => {
+window.addNewBook = (e) => {
     e.preventDefault();
-    myLibrary.push({ title: document.getElementById('bt').value, author: document.getElementById('ba').value, genre: document.getElementById('bg').value, year: document.getElementById('by').value, cover: "pic/city-we-became.jpg", price: "$15" });
-    alert('Book added!');
+    const newBook = {
+        title: document.getElementById('bookTitle').value,
+        author: document.getElementById('bookAuthor').value,
+        genre: document.getElementById('bookGenre').value,
+        year: document.getElementById('bookYear').value,
+        cover: "pic/city-we-became.jpg",
+        price: "$15.00"
+    };
+    myLibrary.push(newBook);
+    alert('Book added successfully!');
     renderPage('library');
 };
 
+// Rent Page
 function renderRentPage(container) {
     const rentals = JSON.parse(localStorage.getItem('myRentals')) || [
         { bookName: "The Bees", renterName: "Sarah Jenkins", dueDate: "2026-02-15", status: "Active" },
@@ -242,37 +418,55 @@ function renderRentPage(container) {
     
     container.innerHTML = `
         <h2 class="section-title">Lending & Rentals</h2>
-        <div style="display:flex;gap:20px;margin-bottom:20px;">
-            <div class="stat-card-mini"><span class="label">Lent Out</span><span class="value">${rentals.filter(r=>r.status==='Active').length}</span></div>
-            <div class="stat-card-mini"><span class="label">Earned</span><span class="value">$${(rentals.length*2.5).toFixed(2)}</span></div>
-            <div class="stat-card-mini"><span class="label">Overdue</span><span class="value" style="color:red;">${rentals.filter(r=>r.status==='Overdue').length}</span></div>
-        <table style="width:100%;border-collapse:collapse;">
-            <tr style="background:var(--bg-main);text-align:left;"><th>Book</th><th>Renter</th><th>Due Date</th><th>Status</th></tr>
-            ${rentals.map(r => `<tr style="border-bottom:1px solid var(--border);"><td>${r.bookName}</td><td>${r.renterName}</td><td style="${r.status==='Overdue'?'color:red':''}">${new Date(r.dueDate).toLocaleDateString()}</td><td><span style="color:${r.status==='Active'?'green':'red'};background:${r.status==='Active'?'rgba(0,105,92,0.1)':'rgba(255,0,0,0.1)'};padding:4px 8px;border-radius:4px;">${r.status}</span></td></tr>`).join('')}
-        </table>
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px;">
+            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; min-width: 120px;">
+                <h3 style="color: var(--primary);">${rentals.filter(r=>r.status==='Active').length}</h3>
+                <p style="font-size: 14px;">Lent Out</p>
+            </div>
+            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; min-width: 120px;">
+                <h3 style="color: var(--accent);">$${(rentals.length*2.5).toFixed(2)}</h3>
+                <p style="font-size: 14px;">Earned</p>
+            </div>
+            <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; min-width: 120px;">
+                <h3 style="color: #ff4757;">${rentals.filter(r=>r.status==='Overdue').length}</h3>
+                <p style="font-size: 14px;">Overdue</p>
+            </div>
+        <div style="background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="background: var(--bg-secondary); text-align: left;">
+                    <th style="padding: 15px;">Book</th>
+                    <th style="padding: 15px;">Renter</th>
+                    <th style="padding: 15px;">Due Date</th>
+                    <th style="padding: 15px;">Status</th>
+                </tr>
+                ${rentals.map(r => `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 15px;"><strong>${r.bookName}</strong></td>
+                        <td style="padding: 15px;">${r.renterName}</td>
+                        <td style="padding: 15px; color: ${r.status==='Overdue'?'#ff4757':''}">${new Date(r.dueDate).toLocaleDateString()}</td>
+                        <td style="padding: 15px;"><span style="color: ${r.status==='Active'?'green':'#ff4757'}; background: ${r.status==='Active'?'rgba(0,105,92,0.1)':'rgba(255,71,87,0.1)'}; padding: 4px 12px; border-radius: 15px; font-size: 12px;">${r.status}</span></td>
+                    </tr>
+                `).join('')}
+            </table>
+        </div>
     `;
 }
 
-// ========== MESSAGES PAGE - FULLY WORKING ==========
+// Messages Page - Fully Working
 function renderMessages(container) {
     let convs = JSON.parse(localStorage.getItem('messages_data'));
     if (!convs) {
         convs = [
             { id: 1, name: "Sarah Johnson", lastMsg: "Hey, do you still have that Dune edition?", time: "2m", avatar: "https://ui-avatars.com/api/?name=Sarah+J&background=D4AF37&color=fff", active: true, messages: [
                 { text: "Hey! That 1965 Dune copy is incredible!", type: "received", time: "10:42 AM" },
-                { text: "Thanks Sarah! It's one of my favorites.", type: "sent", time: "10:45 AM" },
+                { text: "Thanks Sarah!", type: "sent", time: "10:45 AM" },
                 { text: "I'd love to discuss a trade!", type: "received", time: "2m ago" }
             ]},
             { id: 2, name: "Michael Chen", lastMsg: "The trade sounds good!", time: "1h", avatar: "https://ui-avatars.com/api/?name=Mike+C&background=2C3E50&color=fff", active: false, messages: [
                 { text: "Is 'The Martian' still available?", type: "received", time: "Yesterday" },
-                { text: "Yes! Looking for $15.", type: "sent", time: "Yesterday" },
-                { text: "The trade sounds good!", type: "received", time: "1h ago" }
+                { text: "Yes! $15", type: "sent", time: "Yesterday" }
             ]},
-            { id: 3, name: "Emily Watson", lastMsg: "Thanks for the recommendation!", time: "5h", avatar: "https://ui-avatars.com/api/?name=Emily+W&background=E74C3C&color=fff", active: false, messages: [
-                { text: "Any sci-fi recommendations?", type: "received", time: "5h ago" },
-                { text: "Check out 'Project Hail Mary'!", type: "sent", time: "5h ago" },
-                { text: "Thanks!", type: "received", time: "5h ago" }
-            ]}
+            { id: 3, name: "Emily Watson", lastMsg: "Thanks!", time: "5h", avatar: "https://ui-avatars.com/api/?name=Emily+W&background=E74C3C&color=fff", active: false, messages: [] }
         ];
         localStorage.setItem('messages_data', JSON.stringify(convs));
     }
@@ -280,38 +474,37 @@ function renderMessages(container) {
     const active = convs.find(c => c.active) || convs[0];
 
     container.innerHTML = `
-        <div style="display:flex(100vh - 200px);border;height:calc-radius:15px;overflow:hidden;background:white;box-shadow:0 2px10px rgba(0,0,0,0.1);">
-            <div style="width:300px;border-right:1px solid #ddd;display:flex;flex-direction:column;">
-                <div style="padding:15px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;">
-                    <h3 style="margin:0;">Messages</h3>
-                    <button onclick="newChat()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">✏️</button>
+        <div style="display: flex; height: calc(100vh - 250px); min-height: 500px; background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="width: 300px; border-right: 1px solid #eee; display: flex; flex-direction: column;">
+                <div style="padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0;">Messages</h3>
+                    <button onclick="newChat()" style="background: none; border: none; font-size: 18px; cursor: pointer;">✏️</button>
                 </div>
-                <div style="flex:1;overflow-y:auto;">
+                <div style="flex: 1; overflow-y: auto;">
                     ${convs.map(c => `
-                        <div onclick="switchChat(${c.id})" style="padding:12px;display:flex;gap:10px;cursor:pointer;border-bottom:1px solid #eee;${c.active?'background:rgba(43,76,126,0.1);':''}">
-                            <img src="${c.avatar}" style="width:40px;height:40px;border-radius:50%;">
-                            <div style="flex:1;overflow:hidden;">
-                                <div style="display:flex;justify-content:space-between;"><h4 style="margin:0;font-size:0.9rem;">${c.name}</h4><span style="font-size:0.7rem;opacity:0.6;">${c.time}</span></div>
-                                <p style="margin:5px 0 0;font-size:0.75rem;opacity:0.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.lastMsg}</p>
+                        <div onclick="switchChat(${c.id})" style="padding: 12px; display: flex; gap: 10px; cursor: pointer; border-bottom: 1px solid #f5f5f5; background: ${c.active?'rgba(43,76,126,0.1)':'transparent'};">
+                            <img src="${c.avatar}" style="width: 45px; height: 45px; border-radius: 50%;">
+                            <div style="flex: 1; overflow: hidden;">
+                                <div style="display: flex; justify-content: space-between;"><h4 style="margin: 0; font-size: 14px;">${c.name}</h4><span style="font-size: 11px; color: #999;">${c.time}</span></div>
+                                <p style="margin: 5px 0 0; font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.lastMsg}</p>
                             </div>
                     `).join('')}
                 </div>
-            <div style="flex:1;display:flex;flex-direction:column;">
-                <div style="padding:15px;border-bottom:1px solid #ddd;display:flex;align-items:center;gap:10px;">
-                    <img src="${active.avatar}" style="width:40px;height:40px;border-radius:50%;">
-                    <div><h4 style="margin:0;">${active.name}</h4><p style="margin:0;font-size:0.75rem;color:green;">Online</p></div>
-                <div id="chatScroll" style="flex:1;padding:15px;overflow-y:auto;">
-                    ${active.messages.map(m => `
-                        <div style="max-width:70%;padding:10px 15px;border-radius:15px;margin-bottom:10px;${m.type==='sent'?'background:var(--primary);color:white;margin-left:auto;':'background:#f0f0f0;color:black;'}">
-                            <p style="margin:0;">${m.text}</p>
-                            <span style="font-size:0.65rem;opacity:0.7;display:block;text-align:right;margin-top:5px;">${m.time}</span>
+            <div style="flex: 1; display: flex; flex-direction: column;">
+                <div style="padding: 15px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 12px;">
+                    <img src="${active.avatar}" style="width: 40px; height: 40px; border-radius: 50%;">
+                    <div><h4 style="margin: 0; font-size: 15px;">${active.name}</h4><p style="margin: 0; font-size: 12px; color: green;">Online</p></div>
+                <div id="chatScroll" style="flex: 1; padding: 15px; overflow-y: auto;">
+                    ${active.messages.length ? active.messages.map(m => `
+                        <div style="max-width: 70%; padding: 10px 15px; border-radius: 15px; margin-bottom: 10px; ${m.type==='sent'?'background: var(--primary); color: white; margin-left: auto;':'background: #f0f0f0; color: black;'}">
+                            <p style="margin: 0; font-size: 14px;">${m.text}</p>
+                            <span style="font-size: 10px; opacity: 0.7; display: block; text-align: right; margin-top: 5px;">${m.time}</span>
                         </div>
-                    `).join('')}
+                    `).join('') : '<p style="text-align: center; color: #999; margin-top: 50px;">No messages yet</p>'}
                 </div>
-                <div style="padding:15px;border-top:1px solid #ddd;display:flex;gap:10px;">
-                    <button onclick="attachFile()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;">📎</button>
-                    <input type="text" id="msgInput" placeholder="Type..." onkeypress="if(event.key==='Enter')sendMsg()" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:25px;outline:none;">
-                    <button onclick="sendMsg()" style="background:var(--primary);color:white;border:none;padding:10px 20px;border-radius:25px;cursor:pointer;">Send</button>
+                <div style="padding: 15px; border-top: 1px solid #eee; display: flex; gap: 10px;">
+                    <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendMsg()" style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 25px; outline: none;">
+                    <button onclick="sendMsg()" style="background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 25px; cursor: pointer;">Send</button>
                 </div>
         </div>
     `;
@@ -353,44 +546,46 @@ window.sendMsg = () => {
             c2[ti].lastMsg = "New message";
             c2[ti].time = 'Just now';
             localStorage.setItem('messages_data', JSON.stringify(c2));
-            if (c2.find(x => x.active)?.id === c2[ti].id) {
+            const active = c2.find(x => x.active);
+            if (active && active.id === c2[ti].id) {
                 renderMessages(document.getElementById('page-content'));
                 showNotification();
-            } else showNotification();
+            } else {
+                showNotification();
+            }
         }
     }, 2000);
 };
 
 window.newChat = () => {
-    const name = prompt('Enter name:');
+    const name = prompt('Enter name for new conversation:');
     if (!name) return;
     let c = JSON.parse(localStorage.getItem('messages_data')) || [];
-    if (c.find(x => x.name.toLowerCase() === name.toLowerCase())) {
-        switchChat(c.find(x => x.name.toLowerCase() === name.toLowerCase()).id);
-        return;
-    }
     c.unshift({ id: Date.now(), name, lastMsg: 'New chat', time: 'Now', avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`, active: false, messages: [] });
     localStorage.setItem('messages_data', JSON.stringify(c));
     switchChat(c[0].id);
 };
 
-window.attachFile = () => alert('File attachment coming soon!');
-
+// Settings Page
 function renderSettings(container) {
     container.innerHTML = `
         <h2 class="section-title">Settings</h2>
-        <div style="padding:20px;background:white;border-radius:15px;max-width:600px;">
-            <div style="margin-bottom:20px;padding-bottom:15px;border-bottom:1px solid #ddd;">
-                <h3>Appearance</h3>
-                <p>Dark Mode - Toggle theme</p>
-                <button onclick="toggleDark()" class="pro-btn">Switch Theme</button>
+        <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 600px;">
+            <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid #eee;">
+                <h3 style="margin-bottom: 15px;">Appearance</h3>
+                <p style="color: #666; margin-bottom: 10px;">Dark Mode - Toggle between light and dark themes</p>
+                <button onclick="toggleDark()" style="background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer;">Switch Theme</button>
             </div>
-            <div style="margin-bottom:20px;padding-bottom:15px;border-bottom:1px solid #ddd;">
-                <h3>Notifications</h3>
-                <label style="display:flex;gap:10px;margin:10px 0;"><input type="checkbox" checked> Email notifications</label>
-                <label style="display:flex;gap:10px;margin:10px 0;"><input type="checkbox" checked> Overdue alerts</label>
+            <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid #eee;">
+                <h3 style="margin-bottom: 15px;">Notifications</h3>
+                <label style="display: flex; align-items: center; gap: 10px; margin: 10px 0; cursor: pointer;">
+                    <input type="checkbox" checked> Email notifications for new messages
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; margin: 10px 0; cursor: pointer;">
+                    <input type="checkbox" checked> Alerts for overdue rentals
+                </label>
             </div>
-            <button onclick="alert('Coming soon!')" style="background:#777;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;">Deactivate Account</button>
+            <button onclick="alert('Account deactivation coming soon!')" style="background: #777; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">Deactivate Account</button>
         </div>
     `;
 }
@@ -399,26 +594,62 @@ window.toggleDark = () => {
     localStorage.setItem('theme', d ? 'dark' : 'light');
 };
 
+// Profile Page - Shows User Data
 function renderProfile(container) {
+    // Get user data from Firebase or localStorage
+    let userData = { name: 'User', email: '', bio: 'Book lover!' };
+    
+    if (currentUser) {
+        userData = {
+            name: currentUser.displayName || currentUser.email.split('@')[0],
+            email: currentUser.email,
+            photoURL: currentUser.photoURL
+        };
+    } else {
+        const stored = JSON.parse(localStorage.getItem('currentUser'));
+        if (stored) {
+            userData.name = stored.name;
+            userData.email = stored.email;
+        }
+    }
+    
     container.innerHTML = `
-        <div style="height:200px;background:linear-gradient(135deg,#2B4C7E,#1a3a5c);position:relative;">
-            <button onclick="alert('Coming!')" style="position:absolute;bottom:10px;right:10px;background:white;border:none;padding:8px 15px;border-radius:20px;cursor:pointer;">📷</button>
-        </div>
-        <div style="padding:20px;">
-            <div style="display:flex;gap:20px;align-items:flex-start;margin-top:-60px;">
-                <img src="https://ui-avatars.com/api/?name=Arin+Shrivastava&background=2B4C7E&color=fff&size=128" style="width:120px;height:120px;border-radius:50%;border:4px solid white;">
-                <div style="margin-top:70px;">
-                    <h2 style="margin:0;">Arin Shrivastava</h2>
-                    <p style="margin:5px 0;opacity:0.7;">Master Librarian 📚</p>
-                    <button onclick="alert('Edit!')" class="pro-btn">Edit Profile</button>
-                </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-top:30px;">
-                <div style="text-align:center;padding:20px;background:white;border-radius:15px;box-shadow:0 2px10px rgba(0,0,0,0.1);"><h3 style="color:var(--primary);margin:0;">${myLibrary.length}</h3><p>Books</p></div>
-                <div style="text-align:center;padding:20px;background:white;border-radius:15px;box-shadow:0 2px10px rgba(0,0,0,0.1);"><h3 style="color:var(--primary);margin:0;">42</h3><p>Followers</p></div>
-                <div style="text-align:center;padding:20px;background:white;border-radius:15px;box-shadow:0 2px10px rgba(0,0,0,0.1);"><h3 style="color:var(--primary);margin:0;">89</h3><p>Trust Score</p></div>
-            <div style="margin-top:30px;background:white;padding:20px;border-radius:15px;box-shadow:0 2px10px rgba(0,0,0,0.1);">
-                <h3>Biography</h3>
-                <p style="line-height:1.8;opacity:0.8;">Passionate reader and collector of rare Sci-Fi editions!</p>
+        <div style="background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="height: 200px; background: linear-gradient(135deg, #2B4C7E, #1a3a5c); position: relative;">
+                <button onclick="alert('Cover photo change coming soon!')" style="position: absolute; bottom: 15px; right: 15px; background: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer;">📷 Change Cover</button>
+            </div>
+            <div style="padding: 20px;">
+                <div style="display: flex; gap: 20px; align-items: flex-start; margin-top: -70px;">
+                    <img src="${userData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=2B4C7E&color=fff&size=128`}" style="width: 130px; height: 130px; border-radius: 50%; border: 5px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <div style="margin-top: 75px;">
+                        <h2 style="margin: 0;">${userData.name}</h2>
+                        <p style="margin: 5px 0; color: #666;">${userData.email || 'No email'}</p>
+                        <p style="margin: 5px 0; color: var(--accent);">Master Librarian 📚</p>
+                        <button onclick="alert('Edit profile coming soon!')" style="background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; margin-top: 10px;">Edit Profile</button>
+                    </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 30px;">
+                    <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 12px;">
+                        <h3 style="color: var(--primary); margin: 0;">${myLibrary.length}</h3>
+                        <p style="margin: 5px 0 0; font-size: 14px;">Books</p>
+                    </div>
+                    <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 12px;">
+                        <h3 style="color: var(--primary); margin: 0;">42</h3>
+                        <p style="margin: 5px 0 0; font-size: 14px;">Followers</p>
+                    </div>
+                    <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 12px;">
+                        <h3 style="color: var(--primary); margin: 0;">89</h3>
+                        <p style="margin: 5px 0 0; font-size: 14px;">Trust Score</p>
+                    </div>
+                
+                <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 12px;">
+                    <h3 style="margin-bottom: 15px;">Biography</h3>
+                    <p style="line-height: 1.8; color: #666;">Passionate reader and collector of rare Sci-Fi editions. Always looking for good trades and discussing great books!</p>
+                    <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <span style="background: rgba(43,76,126,0.1); color: var(--primary); padding: 5px 12px; border-radius: 20px; font-size: 12px;">#SciFiCollector</span>
+                        <span style="background: rgba(43,76,126,0.1); color: var(--primary); padding: 5px 12px; border-radius: 20px; font-size: 12px;">#RareBooks</span>
+                        <span style="background: rgba(43,76,126,0.1); color: var(--primary); padding: 5px 12px; border-radius: 20px; font-size: 12px;">#BookLover</span>
+                    </div>
             </div>
     `;
 }
